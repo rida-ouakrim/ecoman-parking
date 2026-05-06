@@ -1,0 +1,5 @@
+.streamlit/secrets.toml
+parking.db
+__pycache__/
+*.pyc
+.DS_Store

@@ -29,6 +29,73 @@ st.markdown("""
 conn = sqlite3.connect("parking.db", check_same_thread=False)
 cursor = conn.cursor()
 
+# --- INIT HISTORY TABLE ---
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    username TEXT,
+    park_name TEXT,
+    action TEXT,
+    code_place TEXT,
+    old_chassis TEXT,
+    new_chassis TEXT
+)
+""")
+conn.commit()
+
+# --- AUTHENTICATION LOGIC (SECURE WITH STREAMLIT SECRETS) ---
+if "credentials" in st.secrets:
+    credentials = st.secrets["credentials"]
+else:
+    credentials = {
+        "MAN": "MAN2026",
+        "yassine": "yassineMAN1"
+    }
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.session_state.role = ""
+
+def do_login():
+    username = st.session_state.login_user
+    password = st.session_state.login_pass
+    if username in credentials and credentials[username] == password:
+        st.session_state.logged_in = True
+        st.session_state.username = username
+        st.session_state.role = "admin" if username == "MAN" else "security"
+    else:
+        st.error("Identifiants incorrects.")
+
+
+def do_logout():
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.session_state.role = ""
+
+if not st.session_state.logged_in:
+    st.title("🔒 Connexion - Gestion Parking")
+    st.text_input("Nom d'utilisateur", key="login_user")
+    st.text_input("Mot de passe", type="password", key="login_pass")
+    st.button("Se connecter", on_click=do_login)
+    st.stop()
+
+st.sidebar.markdown(f"👤 Connecté : **{st.session_state.username}**")
+st.sidebar.button("Se déconnecter", on_click=do_logout)
+
+if st.session_state.role == "admin":
+    menu = st.sidebar.radio("Navigation :", ["🗺️ Parking", "📖 Historique"])
+else:
+    menu = "🗺️ Parking"
+
+if menu == "📖 Historique":
+    st.title("📖 Historique des Modifications")
+    history_df = pd.read_sql_query("SELECT datetime(timestamp, '+1 hour') as Date, username as Utilisateur, park_name as Parc, action as Action, code_place as Place, old_chassis as Ancien, new_chassis as Nouveau FROM history ORDER BY timestamp DESC", conn)
+    st.dataframe(history_df, use_container_width=True)
+    st.stop()
+# ----------------------------
+
 st.sidebar.title("🏢 Sélection du Parc")
 park = st.sidebar.radio("Parcs disponibles :", ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"])
 
@@ -164,6 +231,17 @@ if park == "ECOMAIL":
     for col in range(26):
         spots.append({"code": f"S{s_idx}", "x": start_x + col * s_w, "y": start_y, "w": s_w, "h": s_h})
         s_idx -= 1
+        
+    # S62 to S68 (CAMION - 4*2 / 6*4 / 3,5 TONNES / ( SOLO ) SITRAK)
+    # Area: x=350, y=1180, width=300, height=75
+    start_x2 = 350
+    start_y2 = 1180
+    s_w2 = 300 / 7
+    s_h2 = 75
+    s_idx2 = 62
+    for col in range(7):
+        spots.append({"code": f"S{s_idx2}", "x": start_x2 + col * s_w2, "y": start_y2, "w": s_w2, "h": s_h2})
+        s_idx2 += 1
 else:
     # Generic grid 15 columns x 20 rows (300 places) for other parks
     for row in range(20):
@@ -303,6 +381,7 @@ with col_panel:
                             st.error(f"❌ Impossible : Ce numéro de châssis est déjà réservé dans le parc **{existing_park}** (Place **{existing_place}**). Veuillez d'abord supprimer l'ancienne affectation.")
                     else:
                         cursor.execute(f"UPDATE {table_name} SET status='occupé', chassis=? WHERE code_place=?", (new_ch_clean, selected_place))
+                        cursor.execute("INSERT INTO history (username, park_name, action, code_place, new_chassis) VALUES (?, ?, ?, ?, ?)", (st.session_state.username, park, "Assignation", selected_place, new_ch_clean))
                         conn.commit()
                         st.rerun()
                 else:
@@ -312,6 +391,7 @@ with col_panel:
             st.error(f"🔴 État actuel : OCCUPÉ par `{curr_ch}`")
             if st.button("Libérer cette place", use_container_width=True):
                 cursor.execute(f"UPDATE {table_name} SET status='libre', chassis=NULL WHERE code_place=?", (selected_place,))
+                cursor.execute("INSERT INTO history (username, park_name, action, code_place, old_chassis) VALUES (?, ?, ?, ?, ?)", (st.session_state.username, park, "Libération", selected_place, curr_ch))
                 conn.commit()
                 st.rerun()
                 
@@ -351,6 +431,8 @@ with col_panel:
                 cursor.execute(f"UPDATE {existing_tname} SET status='libre', chassis=NULL WHERE code_place=?", (existing_place,))
                 # Occuper la nouvelle place dans le parc de destination
                 cursor.execute(f"UPDATE {t_table_dest} SET status='occupé', chassis=? WHERE code_place=?", (t_ch_clean, t_dest))
+                # Enregistrer l'historique
+                cursor.execute("INSERT INTO history (username, park_name, action, code_place, old_chassis, new_chassis) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state.username, t_park_dest, f"Transfert (depuis {existing_place})", t_dest, t_ch_clean, t_ch_clean))
                 conn.commit()
                 st.success(f"✅ Transfert réussi vers {t_park_dest} ({t_dest}) !")
                 st.rerun()
@@ -423,10 +505,7 @@ with col_map:
         svg_elements.append('<rect x="20" y="1180" width="330" height="75" fill="#c2b280" stroke="#212529" stroke-width="2" />')
         svg_elements.append('<text x="185" y="1225" fill="#212529" font-size="14" font-family="sans-serif" font-weight="bold" text-anchor="middle">CAMIONS MILITAIRE</text>')
 
-        # Nouvelle zone Orange: CAMION - 4*2 / 6*4 / 3,5 TONNES / ( SOLO ) SITRAK
-        svg_elements.append('<rect x="350" y="1180" width="300" height="75" fill="#f4b084" stroke="#212529" stroke-width="2" />')
-        svg_elements.append('<text x="500" y="1210" fill="#212529" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">CAMION - 4*2 / 6*4 / 3,5</text>')
-        svg_elements.append('<text x="500" y="1230" fill="#212529" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">TONNES / ( SOLO ) SITRAK</text>')
+        # (La zone Orange est maintenant gérée dynamiquement dans spots S62 à S68)
 
         # (La zone Orange en bas à droite est maintenant gérée dynamiquement dans spots S36 à S61)
 
