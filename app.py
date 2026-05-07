@@ -50,7 +50,8 @@ if "credentials" in st.secrets:
 else:
     credentials = {
         "MAN": "MAN2026",
-        "yassine": "yassineMAN1"
+        "yassine": "yassineMAN1",
+        "amine": "amineMAN2"
     }
 
 if "logged_in" not in st.session_state:
