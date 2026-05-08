@@ -117,7 +117,7 @@ def sync_history_from_supabase_if_empty():
 st.set_page_config(page_title="Gestion Parking", layout="wide")
 
 # --- MODE MAINTENANCE ---
-MAINTENANCE_MODE = True
+MAINTENANCE_MODE = False
 
 if MAINTENANCE_MODE:
     st.title("🚧 Site en Maintenance / Restauration")
