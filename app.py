@@ -415,22 +415,9 @@ if park == "ECOMAIL":
     # ==========================
     d_x = 1250
     
-    # New D14, D15 (formerly D24, D25)
-    spots.append({"code": "D14", "x": d_x, "y": 20, "w": 70, "h": 40})
-    spots.append({"code": "D15", "x": d_x + 70, "y": 20, "w": 70, "h": 40})
-    
-    # 8*4 (formerly D22 + static block)
-    spots.append({"code": "8*4", "x": d_x, "y": 60, "w": 140, "h": 40})
-    
-    # 10T4 to 10T1
-    spots.append({"code": "10T4", "x": d_x, "y": 100, "w": 140, "h": 40})
-    spots.append({"code": "10T3", "x": d_x, "y": 140, "w": 140, "h": 40})
-    spots.append({"code": "10T2", "x": d_x, "y": 180, "w": 140, "h": 40})
-    spots.append({"code": "10T1", "x": d_x, "y": 220, "w": 140, "h": 40})
-    
-    # D12 to D2
-    curr_y = 260
-    for i in range(12, 1, -2):
+    # New D25 to D2 (all divided side-by-side D spots)
+    curr_y = 20
+    for i in range(24, 1, -2):
         spots.append({"code": f"D{i}", "x": d_x, "y": curr_y, "w": 70, "h": 40})
         spots.append({"code": f"D{i+1}", "x": d_x + 70, "y": curr_y, "w": 70, "h": 40})
         curr_y += 40
