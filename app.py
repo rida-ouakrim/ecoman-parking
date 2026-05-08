@@ -116,6 +116,15 @@ def sync_history_from_supabase_if_empty():
 
 st.set_page_config(page_title="Gestion Parking", layout="wide")
 
+# --- MODE MAINTENANCE ---
+MAINTENANCE_MODE = True
+
+if MAINTENANCE_MODE:
+    st.title("🚧 Site en Maintenance / Restauration")
+    st.warning("Le site est temporairement verrouillé pour maintenance et mise à jour de la base de données par l'administrateur. Veuillez ne pas effectuer de saisies pour le moment. L'accès sera rétabli d'ici quelques minutes. Merci de votre patience !")
+    st.stop()
+
+
 st.markdown("""
 <style>
     /* Styling Streamlit UI */
