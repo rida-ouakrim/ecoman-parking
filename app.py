@@ -254,6 +254,9 @@ if menu == "📖 Historique":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
+        except Exception as e:
+            st.error(f"Erreur d'export Excel : {e}")
+            
     st.markdown("### ☁️ Synchronisation Manuelle")
     if st.button("🔄 Synchroniser toute la base locale vers Supabase (Cloud)", use_container_width=True):
         url, key = get_supabase_config()
