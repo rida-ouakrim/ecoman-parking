@@ -205,8 +205,6 @@ if "supabase" in st.secrets:
 else:
     st.sidebar.warning("⚠️ Sauvegarde Cloud : Non configurée")
 
-# Bannière d'information et de mise à jour pour la saisie des châssis
-st.warning("⚠️ **Restauration en cours :** Vous pouvez dès à présent ressaisir les numéros de châssis perdus. Toutes vos saisies sont désormais sécurisées et sauvegardées automatiquement en temps réel dans le Cloud (Supabase) !")
 
 if st.session_state.role == "admin":
     menu = st.sidebar.radio("Navigation :", ["🗺️ Parking", "📖 Historique"])
