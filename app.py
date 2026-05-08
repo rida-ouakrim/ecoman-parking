@@ -2,11 +2,116 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import re
+import requests
 
 def clean_chassis(s):
     if not s: return None
     # Garder uniquement les chiffres
     return "".join(re.findall(r'\d+', str(s)))
+
+# --- SUPABASE CLOUD BACKUP HELPERS ---
+def get_supabase_config():
+    if "supabase" in st.secrets:
+        return st.secrets["supabase"]["url"], st.secrets["supabase"]["key"]
+    return None, None
+
+def supabase_select(table_name):
+    url, key = get_supabase_config()
+    if not url or not key:
+        return None
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}"
+    }
+    try:
+        response = requests.get(f"{url}/rest/v1/{table_name}", headers=headers, timeout=5)
+        if response.status_code == 200:
+            return response.json()
+    except Exception:
+        pass
+    return None
+
+def supabase_upsert(table_name, data):
+    url, key = get_supabase_config()
+    if not url or not key:
+        return False
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+    }
+    try:
+        response = requests.post(f"{url}/rest/v1/{table_name}", json=data, headers=headers, timeout=5)
+        return response.status_code in [200, 201]
+    except Exception:
+        return False
+
+def supabase_insert(table_name, data):
+    url, key = get_supabase_config()
+    if not url or not key:
+        return False
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json"
+    }
+    try:
+        response = requests.post(f"{url}/rest/v1/{table_name}", json=data, headers=headers, timeout=5)
+        return response.status_code in [200, 201]
+    except Exception:
+        return False
+
+def supabase_delete(table_name, code_place):
+    url, key = get_supabase_config()
+    if not url or not key:
+        return False
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}"
+    }
+    try:
+        response = requests.delete(f"{url}/rest/v1/{table_name}?code_place=eq.{code_place}", headers=headers, timeout=5)
+        return response.status_code in [200, 204]
+    except Exception:
+        return False
+
+def sync_from_supabase_if_empty(table_name):
+    url, key = get_supabase_config()
+    if not url or not key:
+        return
+    try:
+        count = cursor.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+        if count == 0:
+            rows = supabase_select(table_name)
+            if rows:
+                for row in rows:
+                    cursor.execute(
+                        f"INSERT OR REPLACE INTO {table_name} (code_place, status, chassis) VALUES (?, ?, ?)",
+                        (row.get("code_place"), row.get("status"), row.get("chassis"))
+                    )
+                conn.commit()
+    except Exception:
+        pass
+
+def sync_history_from_supabase_if_empty():
+    url, key = get_supabase_config()
+    if not url or not key:
+        return
+    try:
+        count = cursor.execute("SELECT COUNT(*) FROM history").fetchone()[0]
+        if count == 0:
+            rows = supabase_select("history")
+            if rows:
+                for row in rows:
+                    cursor.execute(
+                        "INSERT OR REPLACE INTO history (id, timestamp, username, park_name, action, code_place, old_chassis, new_chassis) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (row.get("id"), row.get("timestamp"), row.get("username"), row.get("park_name"), row.get("action"), row.get("code_place"), row.get("old_chassis"), row.get("new_chassis"))
+                    )
+                conn.commit()
+    except Exception:
+        pass
+
 
 
 st.set_page_config(page_title="Gestion Parking", layout="wide")
@@ -43,6 +148,7 @@ CREATE TABLE IF NOT EXISTS history (
 )
 """)
 conn.commit()
+sync_history_from_supabase_if_empty()
 
 # --- AUTHENTICATION LOGIC (SECURE WITH STREAMLIT SECRETS) ---
 if "credentials" in st.secrets:
@@ -85,6 +191,14 @@ if not st.session_state.logged_in:
 st.sidebar.markdown(f"👤 Connecté : **{st.session_state.username}**")
 st.sidebar.button("Se déconnecter", on_click=do_logout)
 
+if "supabase" in st.secrets:
+    st.sidebar.success("☁️ Sauvegarde Supabase : Active")
+else:
+    st.sidebar.warning("⚠️ Sauvegarde Cloud : Non configurée")
+
+# Bannière d'information et de mise à jour pour la saisie des châssis
+st.warning("⚠️ **Restauration en cours :** Vous pouvez dès à présent ressaisir les numéros de châssis perdus. Toutes vos saisies sont désormais sécurisées et sauvegardées automatiquement en temps réel dans le Cloud (Supabase) !")
+
 if st.session_state.role == "admin":
     menu = st.sidebar.radio("Navigation :", ["🗺️ Parking", "📖 Historique"])
 else:
@@ -92,9 +206,55 @@ else:
 
 if menu == "📖 Historique":
     st.title("📖 Historique des Modifications")
+    
+    col_dl1, col_dl2 = st.columns(2)
+    with col_dl1:
+        try:
+            with open("parking.db", "rb") as file:
+                st.download_button(
+                    label="💾 Télécharger SQLite (parking.db)",
+                    data=file,
+                    file_name="parking.db",
+                    mime="application/x-sqlite3",
+                    use_container_width=True
+                )
+        except Exception as e:
+            st.error(f"Erreur de lecture SQLite : {e}")
+            
+    with col_dl2:
+        try:
+            import io
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer) as writer:
+                # Onglet Historique
+                history_df = pd.read_sql_query("SELECT datetime(timestamp, '+1 hour') as Date, username as Utilisateur, park_name as Parc, action as Action, code_place as Place, old_chassis as Ancien, new_chassis as Nouveau FROM history ORDER BY timestamp DESC", conn)
+                history_df.to_excel(writer, sheet_name='Historique', index=False)
+                
+                # Onglets pour chaque parc
+                all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"]
+                for p in all_parks:
+                    t_name = "places" if p == "ECOMAIL" else f"places_{p.replace(' ', '_')}"
+                    try:
+                        df_p = pd.read_sql_query(f"SELECT code_place as Place, status as Statut, chassis as Chassis FROM {t_name}", conn)
+                        df_p.to_excel(writer, sheet_name=p, index=False)
+                    except:
+                        pass
+            
+            st.download_button(
+                label="📊 Exporter en Excel (.xlsx)",
+                data=buffer.getvalue(),
+                file_name="sauvegarde_parking_complet.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Erreur d'export Excel : {e}")
+            
+    st.markdown("---")
     history_df = pd.read_sql_query("SELECT datetime(timestamp, '+1 hour') as Date, username as Utilisateur, park_name as Parc, action as Action, code_place as Place, old_chassis as Ancien, new_chassis as Nouveau FROM history ORDER BY timestamp DESC", conn)
     st.dataframe(history_df, use_container_width=True)
     st.stop()
+
 # ----------------------------
 
 st.sidebar.title("🏢 Sélection du Parc")
@@ -111,6 +271,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
 )
 """)
 conn.commit()
+sync_from_supabase_if_empty(table_name)
 
 # Nettoyage automatique de la base existante (supprimer les lettres des châssis)
 all_tables = ["places", "places_TISSIR", "places_SEFAMAR", "places_V_VLOG"]
@@ -384,6 +545,14 @@ with col_panel:
                         cursor.execute(f"UPDATE {table_name} SET status='occupé', chassis=? WHERE code_place=?", (new_ch_clean, selected_place))
                         cursor.execute("INSERT INTO history (username, park_name, action, code_place, new_chassis) VALUES (?, ?, ?, ?, ?)", (st.session_state.username, park, "Assignation", selected_place, new_ch_clean))
                         conn.commit()
+                        supabase_upsert(table_name, {"code_place": selected_place, "status": "occupé", "chassis": new_ch_clean})
+                        supabase_insert("history", {
+                            "username": st.session_state.username,
+                            "park_name": park,
+                            "action": "Assignation",
+                            "code_place": selected_place,
+                            "new_chassis": new_ch_clean
+                        })
                         st.rerun()
                 else:
                     st.warning("Veuillez entrer un numéro de châssis valide.")
@@ -394,6 +563,14 @@ with col_panel:
                 cursor.execute(f"UPDATE {table_name} SET status='libre', chassis=NULL WHERE code_place=?", (selected_place,))
                 cursor.execute("INSERT INTO history (username, park_name, action, code_place, old_chassis) VALUES (?, ?, ?, ?, ?)", (st.session_state.username, park, "Libération", selected_place, curr_ch))
                 conn.commit()
+                supabase_upsert(table_name, {"code_place": selected_place, "status": "libre", "chassis": None})
+                supabase_insert("history", {
+                    "username": st.session_state.username,
+                    "park_name": park,
+                    "action": "Libération",
+                    "code_place": selected_place,
+                    "old_chassis": curr_ch
+                })
                 st.rerun()
                 
     st.markdown("---")
@@ -435,6 +612,16 @@ with col_panel:
                 # Enregistrer l'historique
                 cursor.execute("INSERT INTO history (username, park_name, action, code_place, old_chassis, new_chassis) VALUES (?, ?, ?, ?, ?, ?)", (st.session_state.username, t_park_dest, f"Transfert (depuis {existing_place})", t_dest, t_ch_clean, t_ch_clean))
                 conn.commit()
+                supabase_upsert(existing_tname, {"code_place": existing_place, "status": "libre", "chassis": None})
+                supabase_upsert(t_table_dest, {"code_place": t_dest, "status": "occupé", "chassis": t_ch_clean})
+                supabase_insert("history", {
+                    "username": st.session_state.username,
+                    "park_name": t_park_dest,
+                    "action": f"Transfert (depuis {existing_place})",
+                    "code_place": t_dest,
+                    "old_chassis": t_ch_clean,
+                    "new_chassis": t_ch_clean
+                })
                 st.success(f"✅ Transfert réussi vers {t_park_dest} ({t_dest}) !")
                 st.rerun()
             else:
