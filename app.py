@@ -254,9 +254,66 @@ if menu == "📖 Historique":
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-        except Exception as e:
-            st.error(f"Erreur d'export Excel : {e}")
-            
+    st.markdown("### ☁️ Synchronisation Manuelle")
+    if st.button("🔄 Synchroniser toute la base locale vers Supabase (Cloud)", use_container_width=True):
+        url, key = get_supabase_config()
+        if not url or not key:
+            st.error("Clés Supabase non configurées.")
+        else:
+            with st.spinner("Synchronisation en cours..."):
+                headers = {
+                    "apikey": key,
+                    "Authorization": f"Bearer {key}",
+                    "Content-Type": "application/json",
+                    "Prefer": "resolution=merge-duplicates"
+                }
+                success = True
+                
+                # Places tables
+                all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"]
+                for p in all_parks:
+                    t_name = "places" if p == "ECOMAIL" else f"places_{p.replace(' ', '_')}"
+                    try:
+                        cursor.execute(f"SELECT code_place, status, chassis FROM {t_name}")
+                        rows = cursor.fetchall()
+                        batch = [{"code_place": r[0], "status": r[1], "chassis": r[2]} for r in rows]
+                        if batch:
+                            resp = requests.post(f"{url}/rest/v1/{t_name.lower()}?on_conflict=code_place", json=batch, headers=headers, timeout=10)
+                            if resp.status_code not in [200, 201]:
+                                success = False
+                                st.error(f"Erreur table {p} : {resp.status_code} - {resp.text}")
+                    except Exception as e:
+                        success = False
+                        st.error(f"Erreur table {p} : {e}")
+                
+                # History table
+                try:
+                    cursor.execute("SELECT id, timestamp, username, park_name, action, code_place, old_chassis, new_chassis FROM history")
+                    rows = cursor.fetchall()
+                    batch = []
+                    for h_id, ts, user, park_name, act, pl, old_ch, new_ch in rows:
+                        batch.append({
+                            "id": h_id,
+                            "timestamp": ts,
+                            "username": user,
+                            "park_name": park_name,
+                            "action": act,
+                            "code_place": pl,
+                            "old_chassis": old_ch,
+                            "new_chassis": new_ch
+                        })
+                    if batch:
+                        resp = requests.post(f"{url}/rest/v1/history", json=batch, headers=headers, timeout=10)
+                        if resp.status_code not in [200, 201]:
+                            success = False
+                            st.error(f"Erreur historique : {resp.status_code} - {resp.text}")
+                except Exception as e:
+                    success = False
+                    st.error(f"Erreur historique : {e}")
+                
+                if success:
+                    st.success("✅ Synchronisation réussie de toutes les places et de l'historique vers Supabase !")
+
     st.markdown("---")
     history_df = pd.read_sql_query("SELECT datetime(timestamp, '+1 hour') as Date, username as Utilisateur, park_name as Parc, action as Action, code_place as Place, old_chassis as Ancien, new_chassis as Nouveau FROM history ORDER BY timestamp DESC", conn)
     st.dataframe(history_df, use_container_width=True)
