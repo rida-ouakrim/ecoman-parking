@@ -24,7 +24,7 @@ def supabase_select(table_name):
         "Authorization": f"Bearer {key}"
     }
     try:
-        response = requests.get(f"{url}/rest/v1/{table_name}", headers=headers, timeout=5)
+        response = requests.get(f"{url}/rest/v1/{table_name.lower()}", headers=headers, timeout=5)
         if response.status_code == 200:
             return response.json()
     except Exception:
@@ -42,7 +42,7 @@ def supabase_upsert(table_name, data):
         "Prefer": "resolution=merge-duplicates"
     }
     try:
-        response = requests.post(f"{url}/rest/v1/{table_name}", json=data, headers=headers, timeout=5)
+        response = requests.post(f"{url}/rest/v1/{table_name.lower()}", json=data, headers=headers, timeout=5)
         return response.status_code in [200, 201]
     except Exception:
         return False
@@ -57,7 +57,7 @@ def supabase_insert(table_name, data):
         "Content-Type": "application/json"
     }
     try:
-        response = requests.post(f"{url}/rest/v1/{table_name}", json=data, headers=headers, timeout=5)
+        response = requests.post(f"{url}/rest/v1/{table_name.lower()}", json=data, headers=headers, timeout=5)
         return response.status_code in [200, 201]
     except Exception:
         return False
@@ -71,7 +71,7 @@ def supabase_delete(table_name, code_place):
         "Authorization": f"Bearer {key}"
     }
     try:
-        response = requests.delete(f"{url}/rest/v1/{table_name}?code_place=eq.{code_place}", headers=headers, timeout=5)
+        response = requests.delete(f"{url}/rest/v1/{table_name.lower()}?code_place=eq.{code_place}", headers=headers, timeout=5)
         return response.status_code in [200, 204]
     except Exception:
         return False
