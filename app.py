@@ -390,17 +390,19 @@ if park == "ECOMAIL":
     # ==========================
     m_x = 980
     
-    # 3 places vides: D24, D23, D22
+    # 3 places vides: D34, D33, D32
     y_box = 20
-    for i in range(24, 21, -1):
+    for i in range(34, 31, -1):
         spots.append({"code": f"D{i}", "x": m_x, "y": y_box, "w": 150, "h": 33.3})
         y_box += 33.3
         
-    # (Autocar Zhong Tong static block is at y=120 to 180)
+    # Two interactive grey Autocar places: Auto 1 and Auto 2
+    spots.append({"code": "Auto 1", "x": m_x, "y": 120, "w": 150, "h": 30})
+    spots.append({"code": "Auto 2", "x": m_x, "y": 150, "w": 150, "h": 30})
     
-    # D21 to D16
+    # D31 to D26
     y_box = 180
-    for i in range(21, 15, -1):
+    for i in range(31, 25, -1):
         spots.append({"code": f"D{i}", "x": m_x, "y": y_box, "w": 150, "h": 33})
         y_box += 33
         
@@ -414,6 +416,11 @@ if park == "ECOMAIL":
     # NEW BLOCK D (Right Side)
     # ==========================
     d_x = 1250
+    
+    # Provisional spots in the top blue road (in front of Entré 1)
+    spots.append({"code": "Prv1", "x": 1140, "y": -35, "w": 65, "h": 45})
+    spots.append({"code": "Prv2", "x": 1215, "y": -35, "w": 65, "h": 45})
+    spots.append({"code": "Prv3", "x": 1290, "y": -35, "w": 65, "h": 45})
     
     # New D25 to D2 (all divided side-by-side D spots)
     curr_y = 20
@@ -761,10 +768,7 @@ with col_map:
         
         # (L'espace 4 CAMIONS est maintenant dynamique: D24, D23, D22)
         
-        # AUTOCAR ZHONG TONG
-        svg_elements.append(f'<rect x="{m_x}" y="120" width="150" height="60" fill="#d9d9d9" stroke="#212529" stroke-width="2" />')
-        svg_elements.append(f'<text x="{m_x + 75}" y="145" fill="#212529" font-size="12" font-family="sans-serif" font-weight="bold" text-anchor="middle">AUTOCAR</text>')
-        svg_elements.append(f'<text x="{m_x + 75}" y="160" fill="#212529" font-size="12" font-family="sans-serif" font-weight="bold" text-anchor="middle">ZHONG TONG</text>')
+        # AUTOCAR is now dynamic with spots Auto 1 and Auto 2
 
         # (Le bloc vert WIELTON est maintenant géré dynamiquement dans spots avec W1 à W21)
 
@@ -786,6 +790,11 @@ with col_map:
         info = places_dict.get(code, {"status": "libre"})
         
         bg_color = "#198754" if info["status"] == "libre" else "#dc3545"
+        if code in ["Auto 1", "Auto 2"] and info["status"] == "libre":
+            bg_color = "#6c757d" # Elegant grey for Autocar spots
+        elif code.startswith("Prv") and info["status"] == "libre":
+            bg_color = "#e67e22" # Beautiful amber/orange for temporary spots
+            
         stroke = "#212529"
         stroke_width = "2"
         
