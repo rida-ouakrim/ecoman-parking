@@ -42,7 +42,7 @@ def supabase_upsert(table_name, data):
         "Prefer": "resolution=merge-duplicates"
     }
     try:
-        response = requests.post(f"{url}/rest/v1/{table_name.lower()}", json=data, headers=headers, timeout=5)
+        response = requests.post(f"{url}/rest/v1/{table_name.lower()}?on_conflict=code_place", json=data, headers=headers, timeout=5)
         return response.status_code in [200, 201]
     except Exception:
         return False
