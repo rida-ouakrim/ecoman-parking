@@ -330,20 +330,22 @@ if park == "ECOMAIL":
     # ==========================
     m_x = 980
     
-    # 3 places vides: D34, D33, D32
+    # 4 rows of pairs: D47 to D40
     y_box = 20
-    for i in range(34, 31, -1):
-        spots.append({"code": f"D{i}", "x": m_x, "y": y_box, "w": 150, "h": 33.3})
-        y_box += 33.3
+    for i in range(46, 39, -2):
+        spots.append({"code": f"D{i}", "x": m_x, "y": y_box, "w": 75, "h": 25})
+        spots.append({"code": f"D{i+1}", "x": m_x + 75, "y": y_box, "w": 75, "h": 25})
+        y_box += 25
         
     # Two interactive grey Autocar places: Auto 1 and Auto 2
     spots.append({"code": "Auto 1", "x": m_x, "y": 120, "w": 150, "h": 30})
     spots.append({"code": "Auto 2", "x": m_x, "y": 150, "w": 150, "h": 30})
     
-    # D31 to D26
+    # 6 rows of pairs: D39 to D28
     y_box = 180
-    for i in range(31, 25, -1):
-        spots.append({"code": f"D{i}", "x": m_x, "y": y_box, "w": 150, "h": 33})
+    for i in range(38, 27, -2):
+        spots.append({"code": f"D{i}", "x": m_x, "y": y_box, "w": 75, "h": 33})
+        spots.append({"code": f"D{i+1}", "x": m_x + 75, "y": y_box, "w": 75, "h": 33})
         y_box += 33
         
     # W Block (W21 to W1, numbering from bottom to top)
@@ -362,18 +364,18 @@ if park == "ECOMAIL":
     spots.append({"code": "Prv2", "x": 1215, "y": -35, "w": 65, "h": 45})
     spots.append({"code": "Prv3", "x": 1290, "y": -35, "w": 65, "h": 45})
     
-    # New D25 to D2 (all divided side-by-side D spots)
+    # New D27 to D2 (all divided side-by-side D spots)
     curr_y = 20
-    for i in range(24, 1, -2):
-        spots.append({"code": f"D{i}", "x": d_x, "y": curr_y, "w": 70, "h": 40})
-        spots.append({"code": f"D{i+1}", "x": d_x + 70, "y": curr_y, "w": 70, "h": 40})
-        curr_y += 40
+    for i in range(26, 1, -2):
+        spots.append({"code": f"D{i}", "x": d_x, "y": curr_y, "w": 70, "h": 37})
+        spots.append({"code": f"D{i+1}", "x": d_x + 70, "y": curr_y, "w": 70, "h": 37})
+        curr_y += 37
         
     # D1
-    spots.append({"code": "D1", "x": d_x, "y": 500, "w": 70, "h": 40})
+    spots.append({"code": "D1", "x": d_x, "y": curr_y, "w": 70, "h": 37})
     
     # S35 (Next to D1)
-    spots.append({"code": "S35", "x": d_x + 70, "y": 500, "w": 70, "h": 40})
+    spots.append({"code": "S35", "x": d_x + 70, "y": curr_y, "w": 70, "h": 37})
     
     # S34 to S1 (CAMION S 4*2 SITRAK)
     s_y = 540
