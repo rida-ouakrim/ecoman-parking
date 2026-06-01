@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  parking-app:
+    build: .
+    container_name: ecoman-parking
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      # Persistance de la base de données SQLite sur le VPS hôte
+      - ./parking.db:/app/parking.db
+      # Montage sécurisé des secrets sans les inclure dans l'image Docker
+      - ./.streamlit:/app/.streamlit
+    restart: always
