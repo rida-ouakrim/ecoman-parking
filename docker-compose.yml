@@ -5,7 +5,7 @@ services:
     build: .
     container_name: ecoman-parking
     ports:
-      - "127.0.0.1:8501:8501"
+      - "8501:8501"
     volumes:
       # Persistance de la base de données SQLite sur le VPS hôte
       - ./parking.db:/app/parking.db
