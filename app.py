@@ -127,7 +127,7 @@ if menu == "📖 Historique":
                 history_df.to_excel(writer, sheet_name='Historique', index=False)
                 
                 # Onglets pour chaque parc
-                all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"]
+                all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG", "Nouveau Parc"]
                 for p in all_parks:
                     t_name = "places" if p == "ECOMAIL" else f"places_{p.replace(' ', '_')}"
                     try:
@@ -154,7 +154,7 @@ if menu == "📖 Historique":
 # ----------------------------
 
 st.sidebar.title("🏢 Sélection du Parc")
-park = st.sidebar.radio("Parcs disponibles :", ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"])
+park = st.sidebar.radio("Parcs disponibles :", ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG", "Nouveau Parc"])
 
 table_name = "places" if park == "ECOMAIL" else f"places_{park.replace(' ', '_')}"
 
@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS {table_name} (
 conn.commit()
 
 # Nettoyage automatique de la base existante (supprimer les lettres des châssis)
-all_tables = ["places", "places_TISSIR", "places_SEFAMAR", "places_V_VLOG"]
+all_tables = ["places", "places_TISSIR", "places_SEFAMAR", "places_V_VLOG", "places_Nouveau_Parc"]
 for t in all_tables:
     try:
         rows = cursor.execute(f"SELECT id, chassis FROM {t} WHERE chassis IS NOT NULL").fetchall()
@@ -295,6 +295,18 @@ if park == "ECOMAIL":
     for col in range(7):
         spots.append({"code": f"S{s_idx2}", "x": start_x2 + col * s_w2, "y": start_y2, "w": s_w2, "h": s_h2})
         s_idx2 += 1
+elif park == "Nouveau Parc":
+    # Generic grid 15 columns x 20 rows (300 places) like V VLOG but with 'N' prefix
+    for row in range(20):
+        for col in range(15):
+            num = row*15 + col + 1
+            spots.append({
+                "code": f"N{num}",
+                "x": 30 + col*62,
+                "y": 50 + row*55,
+                "w": 55,
+                "h": 40
+            })
 else:
     # Generic grid 15 columns x 20 rows (300 places) for other parks
     for row in range(20):
@@ -373,7 +385,7 @@ with col_panel:
     if search_chassis:
         search_ch_clean = clean_chassis(search_chassis)
         found = False
-        all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"]
+        all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG", "Nouveau Parc"]
         for p in all_parks:
             t_name = "places" if p == "ECOMAIL" else f"places_{p.replace(' ', '_')}"
             try:
@@ -414,7 +426,7 @@ with col_panel:
                     chassis_exists = False
                     existing_place = None
                     existing_park = None
-                    all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"]
+                    all_parks = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG", "Nouveau Parc"]
                     for p in all_parks:
                         t_name = "places" if p == "ECOMAIL" else f"places_{p.replace(' ', '_')}"
                         try:
@@ -452,7 +464,7 @@ with col_panel:
     st.subheader("🔄 Transférer un véhicule")
     t_chassis = st.text_input("Châssis à transférer:")
     
-    all_parks_list = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG"]
+    all_parks_list = ["ECOMAIL", "TISSIR", "SEFAMAR", "V VLOG", "Nouveau Parc"]
     t_park_dest = st.selectbox("Vers le parc:", all_parks_list, index=all_parks_list.index(park))
     
     t_table_dest = "places" if t_park_dest == "ECOMAIL" else f"places_{t_park_dest.replace(' ', '_')}"
